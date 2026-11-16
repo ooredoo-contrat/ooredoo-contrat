@@ -154,8 +154,8 @@ function creerPdf(){var code=$('sCode').value.trim().toUpperCase().replace(/\s+/
   bs.forEach(function(b,i){f.append('photo'+i,b,'page'+i+'.jpg')});$('bCreer').textContent='Scan en cours… (environ 1 minute)';
   return fetch(API,{method:'POST',body:f}).then(function(r){return rep(r)})})
  .then(function(r){if(!r||!r.ok)throw new Error(r&&r.erreur||'');PHOTOS=[];vignettes();$('e6').className='err okmsg';
-  $('e6').innerHTML='✅ '+esc(r.nomPdf)+' créé ('+r.pages+' pages).'+(r.etat?'<br>'+esc(r.etat):'')+(r.alertes&&r.alertes.length?'<br>⚠️ '+r.alertes.map(esc).join('<br>⚠️ '):'');
-  setTimeout(function(){voir('app');chercher(r.code)},2500)})
+  $('e6').innerHTML='⏳ Photos envoyées. Le PDF '+esc(r.code)+'_contrat.pdf est en préparation (environ 2 minutes).<br>Vous le recevrez aussi sur Telegram. Vous pouvez quitter cette page.';
+  setTimeout(function(){if(!$('scan').classList.contains('hidden')){voir('app');chercher(r.code)}},120000)})
  .catch(function(e){$('e6').className='err';$('e6').textContent='Erreur pendant le scan'+(e&&e.message?' ('+e.message+')':'')+'. Réessayez.'})
  .finally(function(){$('bCreer').disabled=false;vignettes()})}
 function voir(id){['login','inscr','attente','app','scan'].forEach(function(x){$(x).classList.toggle('hidden',x!=id)})}
