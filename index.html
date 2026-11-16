@@ -133,10 +133,18 @@ function visionner(d){$('vue').classList.remove('hidden');$('vueNom').textConten
     var cv=document.createElement('canvas');cv.width=v.width;cv.height=v.height;cv.style.width=largeur+'px';z.appendChild(cv);return pg.render({canvasContext:cv.getContext('2d'),viewport:v}).promise})})})(i);return ch})})
  .catch(function(){z.innerHTML='<p class="msg">Impossible d\'afficher ce document.</p>'})}
 function reduire(f){return new Promise(function(ok,ko){var im=new Image();im.onload=function(){var m=2400,k=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
- c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(function(b){b?ok(b):ko()},'image/jpeg',0.88)};im.onerror=ko;im.src=URL.createObjectURL(f)})}
-function ajouterPhotos(fl){Array.prototype.forEach.call(fl,function(f){PHOTOS.push(f)});vignettes()}
+ c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(function(b){b?ok(b):ko(new Error('photo illisible'))},'image/jpeg',0.88)};im.onerror=function(){ko(new Error('photo illisible'))};im.src=URL.createObjectURL(f)})}
+var heicLib=null;
+function chargerHeic(){if(heicLib)return heicLib;heicLib=new Promise(function(ok,ko){var sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';sc.onload=function(){ok(window.heic2any)};sc.onerror=function(){heicLib=null;ko(new Error('heic'))};document.head.appendChild(sc)});return heicLib}
+function lisible(b){return new Promise(function(ok){var im=new Image();im.onload=function(){ok(im.width>0)};im.onerror=function(){ok(false)};im.src=URL.createObjectURL(b)})}
+function preparer(f){var heic=/hei[cf]/i.test(f.type)||/\.hei[cf]$/i.test(f.name||'');
+ return (heic?Promise.resolve(false):lisible(f)).then(function(ok){if(ok)return f;
+  return chargerHeic().then(function(h){return h({blob:f,toType:'image/jpeg',quality:0.9})}).then(function(r){return Array.isArray(r)?r[0]:r})})}
+var EN_COURS=0;
+function ajouterPhotos(fl){var l=Array.prototype.slice.call(fl);EN_COURS+=l.length;vignettes();
+ l.forEach(function(f){preparer(f).then(function(b){PHOTOS.push(b)}).catch(function(){$('e6').className='err';$('e6').textContent='Une photo n\'a pas pu être lue. Reprenez-la avec « Prendre une photo ».'}).finally(function(){EN_COURS--;vignettes()})})}
 function vignettes(){var z=$('vigs');z.innerHTML='';PHOTOS.forEach(function(f,i){var d=document.createElement('div');d.className='vig';d.innerHTML='<img src="'+URL.createObjectURL(f)+'"><button>×</button>';d.querySelector('button').onclick=function(){PHOTOS.splice(i,1);vignettes()};z.appendChild(d)});
- $('bCreer').textContent=PHOTOS.length?'Créer le PDF ('+PHOTOS.length+' page'+(PHOTOS.length>1?'s':'')+')':'Créer le PDF'}
+ $('bCreer').disabled=EN_COURS>0;$('bCreer').textContent=EN_COURS>0?'Préparation des photos… ('+EN_COURS+')':(PHOTOS.length?'Créer le PDF ('+PHOTOS.length+' page'+(PHOTOS.length>1?'s':'')+')':'Créer le PDF')}
 function creerPdf(){var code=$('sCode').value.trim().toUpperCase().replace(/\s+/g,'');$('e6').className='err';$('e6').textContent='';
  if(!/^[A-Z]{2,3}[0-9T][0-9]{1,4}[A-Z]{0,3}$/.test(code)){$('e6').textContent='Entrez un code site valide (ex : AN0317).';return}
  if(!PHOTOS.length){$('e6').textContent='Ajoutez au moins une photo.';return}
@@ -148,7 +156,7 @@ function creerPdf(){var code=$('sCode').value.trim().toUpperCase().replace(/\s+/
  .then(function(r){if(!r||!r.ok)throw new Error(r&&r.erreur||'');PHOTOS=[];vignettes();$('e6').className='err okmsg';
   $('e6').innerHTML='✅ '+esc(r.nomPdf)+' créé ('+r.pages+' pages).'+(r.etat?'<br>'+esc(r.etat):'')+(r.alertes&&r.alertes.length?'<br>⚠️ '+r.alertes.map(esc).join('<br>⚠️ '):'');
   setTimeout(function(){voir('app');chercher(r.code)},2500)})
- .catch(function(e){$('e6').textContent='Erreur pendant le scan'+(e.message?' : '+e.message:'')+'. Réessayez.'})
+ .catch(function(e){$('e6').className='err';$('e6').textContent='Erreur pendant le scan'+(e&&e.message?' ('+e.message+')':'')+'. Réessayez.'})
  .finally(function(){$('bCreer').disabled=false;vignettes()})}
 function voir(id){['login','inscr','attente','app','scan'].forEach(function(x){$(x).classList.toggle('hidden',x!=id)})}
 function inscription(){var u=$('iu').value.trim(),p=$('ip').value;$('e3').textContent='';
