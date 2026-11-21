@@ -34,7 +34,7 @@ button:disabled{opacity:.55}.full{width:100%}.row{display:flex;gap:8px}.row inpu
 .vigs{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.vig{position:relative}.vig img{width:74px;height:98px;object-fit:cover;border-radius:6px;border:1px solid #cfd6df}
 .vig button{position:absolute;top:-6px;right:-6px;width:24px;height:24px;padding:0;border-radius:12px;background:#c62828;font-size:14px}
 .note{font-size:13px;color:#667;margin:6px 0}
-</style></head><body>
+.b-etat{background:#1c2430;margin-top:10px}.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.tabs button{background:#eceff1;color:#1c2430;padding:8px 12px;font-size:14px}.tabs button.on{background:#e30613;color:#fff}.ligne{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-top:1px solid #eef1f4;flex-wrap:wrap}.ligne .gauche{flex:1;min-width:150px}</style></head><body>
 <div class="box" id="login">
 <h1>Ooredoo Contrat</h1><p class="sub">Suivi des contrats</p>
 <input id="u" placeholder="Nom d'utilisateur" autocomplete="username">
@@ -60,11 +60,11 @@ button:disabled{opacity:.55}.full{width:100%}.row{display:flex;gap:8px}.row inpu
 <div class="box hidden" id="app">
 <h1>Ooredoo Contrat</h1><p class="sub" id="accesTxt">Tapez un code site ou un numéro de contrat</p>
 <div class="row"><input id="c" placeholder="Ex : TE6203"><button id="bc">Chercher</button></div>
-<button class="full b-scan hidden" id="bScan">📷 Scanner un contrat</button>
+<button class="full b-etat" id="bEtat">📊 État des contrats</button> <button class="full b-scan hidden" id="bScan">📷 Scanner un contrat</button>
 <div class="err" id="e2"></div><div id="res"></div>
 <button class="link" onclick="location.reload()">Se déconnecter</button>
 </div>
-<div class="box hidden" id="scan">
+<div class="box hidden" id="etat"><h2>📊 État des contrats</h2><div class="tabs" id="etatTabs"></div><div id="etatListe"></div><div class="err" id="e7"></div><button class="link" id="eRetour">← Retour</button></div><div class="box hidden" id="scan">
 <h2>📷 Scanner un contrat</h2>
 <input id="sCode" placeholder="Code site (ex : AN0317)">
 <p class="note">Prenez une photo de chaque page (dans n'importe quel ordre). Le système recadre, nettoie, met les pages dans l'ordre et crée un seul PDF. Les photos ne sont pas gardées.</p>
@@ -158,7 +158,7 @@ function creerPdf(){var code=$('sCode').value.trim().toUpperCase().replace(/\s+/
   setTimeout(function(){if(!$('scan').classList.contains('hidden')){voir('app');chercher(r.code)}},120000)})
  .catch(function(e){$('e6').className='err';$('e6').textContent='Erreur pendant le scan'+(e&&e.message?' ('+e.message+')':'')+'. Réessayez.'})
  .finally(function(){$('bCreer').disabled=false;vignettes()})}
-function voir(id){['login','inscr','attente','app','scan'].forEach(function(x){$(x).classList.toggle('hidden',x!=id)})}
+var ETAT=null,ONGLET='tous';function chargerEtat(){$('e2').textContent='';$('bEtat').disabled=true;appel({action:'etat_contrats'}).then(function(r){if(!r||!r.ok||!r.onglets)throw new Error('serveur');ETAT=r.onglets;ONGLET=ETAT.tous?'tous':Object.keys(ETAT)[0];$('e7').textContent='';voir('etat');rendreEtat()}).catch(function(){$('e2').textContent="Impossible de charger l'état des contrats. Réessayez."}).finally(function(){$('bEtat').disabled=false})}function rendreEtat(){var cles=['tous','recuperes','restants'].filter(function(k){return ETAT[k]});$('etatTabs').innerHTML=cles.map(function(k){return '<button data-k="'+k+'"'+(k==ONGLET?' class="on"':'')+'>'+esc(ETAT[k].titre)+' ('+(ETAT[k].total||0)+')</button>'}).join('');tous('#etatTabs button',function(b){b.onclick=function(){ONGLET=b.dataset.k;rendreEtat()}});var items=(ETAT[ONGLET]&&ETAT[ONGLET].items)||[];$('etatListe').innerHTML=items.length?items.map(function(it){var rec=!!it.estRecupere||it.statut=='recupere',cd=it.code||it.numero||'';return '<div class="ligne"><div class="gauche"><b>'+esc(it.code||'—')+'</b>'+(it.numero?' · '+esc(it.numero):'')+'<br><span class="note">'+esc(it.nom||'')+(it.date?' · '+esc(it.date):'')+'</span></div><div class="acts"><span class="badge '+(rec?'ok':'wait')+'">'+(rec?'✅ Récupéré':'⏳ Pas encore récupéré')+'</span><button class="b-vue" data-code="'+esc(cd)+'">Voir</button></div></div>'}).join(''):'<p class="note">Aucun contrat dans cet onglet.</p>';tous('#etatListe .b-vue',function(b){b.onclick=function(){voir('app');chercher(b.dataset.code)}})}function voir(id){['login','inscr','attente','app','scan','etat'].forEach(function(x){$(x).classList.toggle('hidden',x!=id)})}
 function inscription(){var u=$('iu').value.trim(),p=$('ip').value;$('e3').textContent='';
  if(!/^[A-Za-z0-9._-]{3,30}$/.test(u)){$('e3').textContent='Nom d\'utilisateur : 3 à 30 lettres ou chiffres, sans espace.';return}
  if(p.length<8){$('e3').textContent='Le mot de passe doit avoir au moins 8 caractères.';return}
@@ -174,7 +174,7 @@ function valider(){var c=$('ca').value.trim();if(!c)return;$('e5').textContent='
 $('bd').onclick=demander;$('bv').onclick=valider;$('versInscr').onclick=function(){voir('inscr')};$('versLogin').onclick=function(){voir('login')};$('bi').onclick=inscription;
 $('bl').onclick=connexion;$('p').onkeydown=function(e){if(e.key=='Enter')connexion()};
 $('bc').onclick=function(){chercher()};$('c').onkeydown=function(e){if(e.key=='Enter')chercher()};
-$('bScan').onclick=function(){$('sCode').value=$('c').value.trim();$('e6').textContent='';voir('scan')};$('bRetour').onclick=function(){voir('app')};
+$('bScan').onclick=function(){$('sCode').value=$('c').value.trim();$('e6').textContent='';voir('scan')};$('bRetour').onclick=function(){voir('app')};$('bEtat').onclick=chargerEtat;$('eRetour').onclick=function(){voir('app')};
 $('bCam').onclick=function(){$('sCam').click()};$('bGal').onclick=function(){$('sFich').click()};
 $('sCam').onchange=function(){ajouterPhotos(this.files);this.value=''};$('sFich').onchange=function(){ajouterPhotos(this.files);this.value=''};$('bCreer').onclick=creerPdf;
 $('selMail').onclick=function(){action($('selMail'),function(){return fichiers(liste()).then(envoyerMail)})};
